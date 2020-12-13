@@ -12,13 +12,15 @@ class StravaAnalyser:
 
   def __init__(self):
     self.api_client = ApiClient()
+
+  @staticmethod
+  def print_title(title: str) -> None:
+    print("--------------------------------------------------------------")
+    print(title)
+    print("--------------------------------------------------------------")
   
   @staticmethod
   def print_efforts(efforts) -> None:
-    print("--------------------------------------------------------------")
-    print(f"Segment: {efforts[0]['name']}")
-    print("--------------------------------------------------------------")
-
     efforts.sort(key=lambda x: x["elapsed_time"])
     top = list(map(lambda x : x["id"], efforts))
     efforts.sort(key=lambda x: x["start_date"], reverse=True)
@@ -36,6 +38,7 @@ class StravaAnalyser:
         print(Fore.RED, text)
       else:
         print(Style.RESET_ALL, text)
+    print(Style.RESET_ALL)
 
   def get_activity_list(self) -> List[Dict]:
     PER_PAGE = 200
@@ -90,8 +93,6 @@ class StravaAnalyser:
       json.dump(stored_activities, file)
 
   def get_segment_efforts(self, id: int) -> None:
-    print(f"Getting efforts for segment id: {id}")
-
     segment_map = {}
 
     with open(self.ACTIVITIES_FILE) as file:
@@ -108,20 +109,47 @@ class StravaAnalyser:
 
     try:
       current_segment_efforts: List[Any] = segment_map[id]
+      self.print_title(f"Segment: {current_segment_efforts[0]['name']}")
       self.print_efforts(current_segment_efforts)
     
     except KeyError as err:
       print(f"Requested segment id {err} not available. Ensure that id is correct or try to update activity list.")
 
+  def get_activity_best_efforts(self, id: int = None):
+    with open(self.ACTIVITIES_FILE) as file:
+      stored_activities: List = json.load(file)
+
+    try:
+      if id:
+        current_activity = [act for act in stored_activities if act["id"] == id][0]
+      else:
+        current_activity = stored_activities[len(stored_activities) - 1]
+
+      activity_date =  datetime.datetime.strptime(current_activity["start_date"],"%Y-%m-%dT%H:%M:%SZ").strftime("%d.%m.%Y")
+      self.print_title(f"Activity: {current_activity['name']} from {activity_date}")
+
+      segment_efforts = current_activity["segment_efforts"]
+      best_efforts = list(filter(lambda x: len(x["achievements"]) > 0, segment_efforts))
+
+      for effort in best_efforts:
+        self.get_segment_efforts(effort["segment"]["id"])
+    
+    except IndexError:
+      print(f"Requested activity id {id} not available. Ensure that id is correct or try to update activity list.")
+
 
 if __name__ == "__main__":
   if len(sys.argv) < 2:
-    print("Argument segment ID missing.")
+    print("Argument activity ID missing.")
   else:
-    requested_segment_id = int(sys.argv[1])
-    strava_analyser = StravaAnalyser()
+    try:
+      id = int(sys.argv[1])
+      strava_analyser = StravaAnalyser()
 
-    if len(sys.argv) > 2 and sys.argv[2] == "update":
-      strava_analyser.update_activities()
+      if sys.argv.count("update") > 0:
+        strava_analyser.update_activities()
 
-    strava_analyser.get_segment_efforts(requested_segment_id)
+      strava_analyser.get_activity_best_efforts(id)
+
+    except ValueError:
+      print("Invadlid argument.")
