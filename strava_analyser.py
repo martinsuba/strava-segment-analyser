@@ -5,13 +5,37 @@ import time
 import datetime
 import sys
 from api_client import ApiClient
-from colorama import Fore, Style 
+from colorama import Fore, Style
 
 class StravaAnalyser:
   ACTIVITIES_FILE = "activities.json"
 
   def __init__(self):
     self.api_client = ApiClient()
+  
+  @staticmethod
+  def print_efforts(efforts) -> None:
+    print("--------------------------------------------------------------")
+    print(f"Segment: {efforts[0]['name']}")
+    print("--------------------------------------------------------------")
+
+    efforts.sort(key=lambda x: x["elapsed_time"])
+    top = list(map(lambda x : x["id"], efforts))
+    efforts.sort(key=lambda x: x["start_date"], reverse=True)
+    
+    for effort in efforts:
+      seconds = effort["elapsed_time"]
+      date =  datetime.datetime.strptime(effort["start_date"],"%Y-%m-%dT%H:%M:%SZ").strftime("%d.%m.%Y")
+      text = f"{date}: {datetime.timedelta(seconds=seconds)}"
+
+      if top.index(effort["id"]) == 0:
+        print(Fore.LIGHTYELLOW_EX, f"{text} PR")
+      elif top.index(effort["id"]) == 1:
+        print(Fore.LIGHTBLUE_EX, text)
+      elif top.index(effort["id"]) == 2:
+        print(Fore.RED, text)
+      else:
+        print(Style.RESET_ALL, text)
 
   def get_activity_list(self) -> List[Dict]:
     PER_PAGE = 200
@@ -84,23 +108,7 @@ class StravaAnalyser:
 
     try:
       current_segment_efforts: List[Any] = segment_map[id]
-
-      print("--------------------------------------------------------------")
-      print(f"Segment: {current_segment_efforts[0]['name']}")
-      print("--------------------------------------------------------------")
-
-      current_segment_efforts.sort(key=lambda x: x["elapsed_time"])
-      pr = current_segment_efforts[0]
-      current_segment_efforts.sort(key=lambda x: x["start_date"], reverse=True)
-      
-      for effort in current_segment_efforts:
-        seconds = effort["elapsed_time"]
-        date =  datetime.datetime.strptime(effort["start_date"],"%Y-%m-%dT%H:%M:%SZ").strftime("%d.%m.%Y")
-
-        if pr["id"] == effort["id"]:
-          print(Fore.RED, f"PR {date}: {datetime.timedelta(seconds=seconds)}")
-        else:
-          print(Style.RESET_ALL, f"   {date}: {datetime.timedelta(seconds=seconds)}")
+      self.print_efforts(current_segment_efforts)
     
     except KeyError as err:
       print(f"Requested segment id {err} not available. Ensure that id is correct or try to update activity list.")
