@@ -20,7 +20,7 @@ class StravaAnalyser:
     print("--------------------------------------------------------------")
   
   @staticmethod
-  def print_efforts(efforts) -> None:
+  def print_efforts(efforts: List[Dict]) -> None:
     efforts.sort(key=lambda x: x["elapsed_time"])
     top = list(map(lambda x : x["id"], efforts))
     efforts.sort(key=lambda x: x["start_date"], reverse=True)
@@ -139,15 +139,18 @@ class StravaAnalyser:
 
 
 if __name__ == "__main__":
-  if len(sys.argv) < 2:
-    print("Argument activity ID missing.")
+  argv = sys.argv.copy()
+  strava_analyser = StravaAnalyser()
+
+  if argv.count("update") > 0:
+    argv.remove("update")
+    strava_analyser.update_activities()
+
+  if len(argv) < 2:
+    strava_analyser.get_activity_best_efforts()
   else:
     try:
-      id = int(sys.argv[1])
-      strava_analyser = StravaAnalyser()
-
-      if sys.argv.count("update") > 0:
-        strava_analyser.update_activities()
+      id = int(argv[1])
 
       strava_analyser.get_activity_best_efforts(id)
 
